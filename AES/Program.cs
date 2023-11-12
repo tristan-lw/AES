@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics.Metrics;
+using System.Text;
 
 namespace AES
 {
@@ -172,13 +173,65 @@ namespace AES
             return x;
         }
     }
+    class Block
+    {
+        private int size = 4;
+        private byte[,] block;
+        public byte this[int i, int j]
+        {
+            get { return block[i, j]; }
+        }
+        public Block(byte[] plaintextBytes)
+        {
+            block = new byte[4, 4];
+            int index = 0; // check if block can't be filled anymore
+            for (int i = 0; i < size; i++)
+            {
+                for (int j = 0; j < size; j++)
+                {
+                    if (index < plaintextBytes.Length)
+                    {
+                        block[i, j] = plaintextBytes[index];
+                        index++;
+                    }
+                    else
+                    {
+                        block[i, j] = 0; // 0 = null
+                    }
+                }
+            }
+            Console.WriteLine(block[0, 1]);
+        }
+    }
     internal class Program
     {
         static void Main(string[] args)
         {
             Console.WriteLine("Hello, World!");
-            string originalKey = "0000000000000000"; // 16 byte key
-            KeyExpansion key = new KeyExpansion(originalKey);
+
+            /*string originalKey = "0000000000000000"; // 16 byte key
+            KeyExpansion key = new KeyExpansion(originalKey);*/
+
+            string plaintext = "Hello, World! Goodbye, World!";
+            byte[] plaintextBytes = Encoding.ASCII.GetBytes(plaintext); // ASCII, each character is represented as a byte
+            byte[] plaintextBytesSliced;
+
+            int numberOfBlocks = (plaintext.Length / 16) + 1;
+            Block[] plaintextBlocks = new Block[numberOfBlocks];
+
+            int counter = 0;
+            for (int i = 0; i < plaintextBlocks.Length; i++)
+            {
+                plaintextBytesSliced = new byte[plaintextBytes.Length - counter];
+                plaintextBytesSliced = plaintextBytes[counter..];
+                plaintextBlocks[i] = new Block(plaintextBytesSliced);
+                counter += 16;
+            }
+
+            Console.WriteLine(plaintextBlocks[0][0, 1]);
+            Console.WriteLine(plaintextBlocks[1][0, 1]);
+
+            Console.ReadLine();
         }
     }
 }
