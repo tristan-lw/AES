@@ -119,21 +119,23 @@ namespace AES
             }
             return p;
         }
-
     }
     internal class KeyExpansion
     {
         internal byte[] ExpandedKey { get; }
         private byte[] key;
-        private byte[] keyBytes;
-        private byte[] word = new byte[4];
-        private byte byteCounter = 16;
-        private byte i = 1;
-        GaloisField GF = new GaloisField();
+        private byte[] word;
+        private int byteCounter;
+        private int counter;
+        private GaloisField GF;
         internal KeyExpansion(byte[] originalKey)
         {
+            GF = new GaloisField();
             ExpandedKey = new byte[176];
             key = originalKey;
+            word = new byte[4];
+            byteCounter = 16;
+            counter = 1;
             Array.Copy(key, ExpandedKey, 16);
             while (byteCounter < 176)
             {
@@ -154,8 +156,8 @@ namespace AES
                         word[a] = ApplySbox(word[a]);
                     }
                     // XOR MSByte with 2^i
-                    word[0] ^= GF.Rcon(i);
-                    i++;
+                    word[0] ^= GF.Rcon(counter);
+                    counter++;
                 }
                 for (int a = 0; a < 4; a++) // the next 4 bytes of expanded key are the word XORed with the 4-byte block 16 bytes ago
                 {
@@ -164,7 +166,7 @@ namespace AES
                 }
             }
         }
-        void RotWord(byte[] word) // Rotate 8 bits to the left
+        private void RotWord(byte[] word) // Rotate 8 bits to the left
         {
             byte b = word[0];
             for (int i = 0; i < 3; i++)
@@ -173,7 +175,7 @@ namespace AES
             }
             word[3] = b;
         }
-        byte ApplySbox(byte b)
+        private byte ApplySbox(byte b)
         {
             byte c, s, x;
             // Calculate multiplicative inverse and store it in s and x
@@ -327,7 +329,7 @@ namespace AES
         {
             Console.WriteLine("Hello, World!");
 
-            byte[] originalKey = new byte[]
+            byte[] originalKey = new byte[] // 16 bytes of hexadecimal
             {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
