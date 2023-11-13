@@ -7,7 +7,7 @@ namespace AES
     internal class GaloisField
     {
         private static byte[] logTable = new byte[]
-{
+        {
             0x00, 0xff, 0xc8, 0x08, 0x91, 0x10, 0xd0, 0x36,
             0x5a, 0x3e, 0xd8, 0x43, 0x99, 0x77, 0xfe, 0x18,
             0x23, 0x20, 0x07, 0x70, 0xa1, 0x6c, 0x0c, 0x7f,
@@ -40,7 +40,7 @@ namespace AES
             0xa5, 0xe3, 0xc5, 0x31, 0xbb, 0xcc, 0x1f, 0x2d,
             0x3b, 0x52, 0x6f, 0xf6, 0x2e, 0x89, 0xf7, 0xc0,
             0x68, 0x1b, 0x64, 0x04, 0x06, 0xbf, 0x83, 0x38
-};
+        };
         private static byte[] antilogTable = new byte[]
         {
             0x01, 0xe5, 0x4c, 0xb5, 0xfb, 0x9f, 0xfc, 0x12,
@@ -88,43 +88,57 @@ namespace AES
                 return antilogTable[255 - logB];
             }
         }
-        internal byte Exponentiate(int i)
+        internal byte Rcon(int i)
         {
             byte c = 1;
             if (i == 0)
+            {
                 return 0;
-
+            }
             while (i != 1)
             {
-                byte b = (byte)(c & 0x80);
-                c <<= 1;
-                if (b == 0x80)
-                {
-                    c ^= 0x1b;
-                }
+                c = Multiply(c, 2);
                 i--;
             }
             return c;
         }
+        internal byte Multiply(byte a, byte b)
+        {
+            byte p = 0;
+            byte counter;
+            byte hiBitSet;
+            for (counter = 0; counter < 8; counter++)
+            {
+                if ((b & 1) == 1)
+                    p ^= a;
+                hiBitSet = (byte)(a & 0x80);
+                a <<= 1;
+                if (hiBitSet == 0x80)
+                    a ^= 0x1b;
+                b >>= 1;
+            }
+            return p;
+        }
+
     }
     internal class KeyExpansion
     {
         internal byte[] ExpandedKey { get; }
-        private string key;
+        private byte[] key;
         private byte[] keyBytes;
         private byte[] word = new byte[4];
         private byte byteCounter = 16;
         private byte i = 1;
         GaloisField GF = new GaloisField();
-        internal KeyExpansion(string originalKey)
+        internal KeyExpansion(byte[] originalKey)
         {
             ExpandedKey = new byte[176];
             key = originalKey;
-            keyBytes = Encoding.ASCII.GetBytes(key);
-            keyBytes.CopyTo(ExpandedKey, 0);
+            Array.Copy(key, ExpandedKey, 16);
             while (byteCounter < 176)
             {
-                for (int a = 0; a < 4; a++) // word (4 bytes) is filled with last 4 bytes of expandedKey: expandedKey[12] to expandedKey[16]
+                // Copy the temporary variable over from the last 4-byte block
+                for (int a = 0; a < 4; a++)
                 {
                     word[a] = ExpandedKey[a + byteCounter - 4];
                 }
@@ -140,7 +154,7 @@ namespace AES
                         word[a] = ApplySbox(word[a]);
                     }
                     // XOR MSByte with 2^i
-                    word[0] ^= GF.Exponentiate(i);
+                    word[0] ^= GF.Rcon(i);
                     i++;
                 }
                 for (int a = 0; a < 4; a++) // the next 4 bytes of expanded key are the word XORed with the 4-byte block 16 bytes ago
@@ -285,6 +299,27 @@ namespace AES
             n += 1;
             return ShiftRows(block, n);
         }
+        void GMixColumn(byte[] r)
+        {
+            byte[] a = new byte[4];
+            byte[] b = new byte[4];
+            byte c;
+            byte h;
+            for (c = 0; c < 4; c++)
+            {
+                a[c] = r[c];
+                h = (byte)(r[c] & 0x80); // hi bit
+                b[c] = (byte)(r[c] << 1);
+                if (h == 0x80)
+                    b[c] ^= 0x1b; // Rijndael's Galois field
+            }
+            r[0] = (byte)(b[0] ^ a[3] ^ a[2] ^ b[1] ^ a[1]);
+            r[1] = (byte)(b[1] ^ a[0] ^ a[3] ^ b[2] ^ a[2]);
+            r[2] = (byte)(b[2] ^ a[1] ^ a[0] ^ b[3] ^ a[3]);
+            r[3] = (byte)(b[3] ^ a[2] ^ a[1] ^ b[0] ^ a[0]);
+        }
+
+
     }
     internal class Program
     {
@@ -292,10 +327,19 @@ namespace AES
         {
             Console.WriteLine("Hello, World!");
 
-            string originalKey = "0000000000000000"; // 16 byte key
-            KeyExpansion key = new KeyExpansion(originalKey);
+            byte[] originalKey = new byte[]
+            {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            };
 
-            string plaintext = "Hello, World! Goodbye, World!";
+            KeyExpansion key = new KeyExpansion(originalKey);
+            foreach (byte b in key.ExpandedKey)
+            {
+                Console.WriteLine(b);
+            }
+
+            /*string plaintext = "Hello, World! Goodbye, World!";
             byte[] plaintextBytes = Encoding.ASCII.GetBytes(plaintext); // ASCII, each character is represented as a byte
             byte[] plaintextBytesSliced;
 
@@ -323,9 +367,11 @@ namespace AES
                 }
             }
 
-            plaintextBlocks[0] = encrypt.ShiftRows(plaintextBlocks[0], 0); // Shift rows
+            plaintextBlocks[0] = encrypt.ShiftRows(plaintextBlocks[0], 0); // Shift rows*/
 
-    
+
+
+
             Console.ReadLine();
         }
     }
