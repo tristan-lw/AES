@@ -109,15 +109,16 @@ namespace AES
     }
     internal class KeyExpansion
     {
+        internal byte[] ExpandedKey { get; }
         private string key;
         private byte[] keyBytes;
-        internal byte[] ExpandedKey = new byte[176];
         private byte[] word = new byte[4];
         private byte byteCounter = 16;
         private byte i = 1;
         GaloisField GF = new GaloisField();
         internal KeyExpansion(string originalKey)
         {
+            ExpandedKey = new byte[176];
             key = originalKey;
             keyBytes = Encoding.ASCII.GetBytes(key);
             keyBytes.CopyTo(ExpandedKey, 0);
