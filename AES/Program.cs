@@ -88,6 +88,16 @@ namespace AES
                 return antilogTable[255 - logB];
             }
         }
+        internal byte AffineTransformation(byte s, byte x)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                s = (byte)((s << 1) | (s >> 7));
+                x ^= s;
+            }
+            x ^= 0x63;
+            return x;
+        }
         internal byte Rcon(int i)
         {
             byte c = 1;
@@ -139,10 +149,10 @@ namespace AES
             Array.Copy(key, ExpandedKey, 16);
             while (byteCounter < 176)
             {
-                // Copy the temporary variable over from the last 4-byte block
-                for (int a = 0; a < 4; a++)
+                // A word is the last 4 bytes of ExpandedKey - ExpandedKey[12] to ExpandedKey[16]
+                for (int i = 0; i < 4; i++) //
                 {
-                    word[a] = ExpandedKey[a + byteCounter - 4];
+                    word[i] = ExpandedKey[byteCounter - 4 + i];
                 }
                 if (byteCounter % 16 == 0) // Every 16 bytes / 4 words of expandedKey
                 {
@@ -150,9 +160,6 @@ namespace AES
                     RotWord(word);
                     for (int a = 0; a < 4; a++)
                     {
-                        // For each byte:
-                        // Find the negative reciprocal (multiplicative inverse)
-                        // Apply affine transformation matrix
                         word[a] = ApplySbox(word[a]);
                     }
                     // XOR MSByte with 2^i
@@ -166,7 +173,7 @@ namespace AES
                 }
             }
         }
-        private void RotWord(byte[] word) // Rotate 8 bits to the left
+        private void RotWord(byte[] word) // Circular rotate 8 bits to the left
         {
             byte b = word[0];
             for (int i = 0; i < 3; i++)
@@ -177,18 +184,9 @@ namespace AES
         }
         private byte ApplySbox(byte b)
         {
-            byte c, s, x;
-            // Calculate multiplicative inverse and store it in s and x
+            byte s, x;
             s = x = GF.MultiplicativeInverse(b);
-            for (c = 0; c < 4; c++)
-            {
-                // One bit circular rotate to the left
-                s = (byte)((s << 1) | (s >> 7));
-                // XOR x with s and store in x
-                x ^= s;
-            }
-            x ^= 0x63; // 0x63 is 99 in decimal
-            return x;
+            return GF.AffineTransformation(s, x);
         }
     }
     internal class Block
