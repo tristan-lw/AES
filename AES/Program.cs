@@ -115,9 +115,8 @@ namespace AES
         internal byte Multiply(byte a, byte b)
         {
             byte p = 0;
-            byte counter;
             byte hiBitSet;
-            for (counter = 0; counter < 8; counter++)
+            for (int i = 0; i < 8; i++)
             {
                 if ((b & 1) == 1)
                     p ^= a;
@@ -136,7 +135,7 @@ namespace AES
         private byte[] key;
         private byte[] word;
         private int byteCounter;
-        private int counter;
+        private int i;
         private GaloisField GF;
         internal KeyExpansion(byte[] originalKey)
         {
@@ -145,28 +144,25 @@ namespace AES
             key = originalKey;
             word = new byte[4];
             byteCounter = 16;
-            counter = 1;
+            i = 1;
             Array.Copy(key, ExpandedKey, 16);
             while (byteCounter < 176)
             {
-                // A word is the last 4 bytes of ExpandedKey - ExpandedKey[12] to ExpandedKey[16]
-                for (int i = 0; i < 4; i++) //
+                for (int a = 0; a < 4; a++)
                 {
-                    word[i] = ExpandedKey[byteCounter - 4 + i];
+                    word[a] = ExpandedKey[byteCounter - 4 + a];
                 }
-                if (byteCounter % 16 == 0) // Every 16 bytes / 4 words of expandedKey
+                if (byteCounter % 16 == 0)
                 {
-                    // One byte left circular shift
                     RotWord(word);
                     for (int a = 0; a < 4; a++)
                     {
                         word[a] = ApplySbox(word[a]);
                     }
-                    // XOR MSByte with 2^i
-                    word[0] ^= GF.Rcon(counter);
-                    counter++;
+                    word[0] ^= GF.Rcon(i);
+                    i++;
                 }
-                for (int a = 0; a < 4; a++) // the next 4 bytes of expanded key are the word XORed with the 4-byte block 16 bytes ago
+                for (int a = 0; a < 4; a++)
                 {
                     ExpandedKey[byteCounter] = (byte)(ExpandedKey[byteCounter - 16] ^ word[a]);
                     byteCounter++;
