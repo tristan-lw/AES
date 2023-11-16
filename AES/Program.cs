@@ -267,55 +267,29 @@ namespace AES
             }
             byte[] row = new byte[block.Size];
             byte[] temp = new byte[row.Length];
-            // Define a row
-            for (int i = 0; i < row.Length; i++)
+            for (int i = 0; i < row.Length; i++) // Define row
             {
                 row[i] = block[n, i];
             }
-            // Copy the first 'n' elements to the temporary array.
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < n; i++) // Copy
             {
                 temp[i] = row[i];
             }
-            // Shift the remaining elements 'n' positions to the left.
-            for (int i = 0; i < row.Length - n; i++)
+            for (int i = 0; i < row.Length - n; i++) // Shift
             {
                 row[i] = row[i + n];
             }
-            // Copy the temporary elements back to the original array at the end.
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < n; i++) // Paste
             {
                 row[row.Length - n + i] = temp[i];
             }
-            // Put row back into block
-            for (int i = 0; i < row.Length; i++)
+            for (int i = 0; i < row.Length; i++) // Insert row
             {
                 block[n, i] = row[i];
             }
             n += 1;
             return ShiftRows(block, n);
         }
-        void GMixColumn(byte[] r)
-        {
-            byte[] a = new byte[4];
-            byte[] b = new byte[4];
-            byte c;
-            byte h;
-            for (c = 0; c < 4; c++)
-            {
-                a[c] = r[c];
-                h = (byte)(r[c] & 0x80); // hi bit
-                b[c] = (byte)(r[c] << 1);
-                if (h == 0x80)
-                    b[c] ^= 0x1b; // Rijndael's Galois field
-            }
-            r[0] = (byte)(b[0] ^ a[3] ^ a[2] ^ b[1] ^ a[1]);
-            r[1] = (byte)(b[1] ^ a[0] ^ a[3] ^ b[2] ^ a[2]);
-            r[2] = (byte)(b[2] ^ a[1] ^ a[0] ^ b[3] ^ a[3]);
-            r[3] = (byte)(b[3] ^ a[2] ^ a[1] ^ b[0] ^ a[0]);
-        }
-
-
     }
     internal class Program
     {
@@ -334,7 +308,7 @@ namespace AES
                 Console.WriteLine(b);
             }
 
-            /*string plaintext = "Hello, World! Goodbye, World!";
+            string plaintext = "Hello, World! Goodbye, World!";
             byte[] plaintextBytes = Encoding.ASCII.GetBytes(plaintext); // ASCII, each character is represented as a byte
             byte[] plaintextBytesSliced;
 
@@ -362,7 +336,7 @@ namespace AES
                 }
             }
 
-            plaintextBlocks[0] = encrypt.ShiftRows(plaintextBlocks[0], 0); // Shift rows*/
+            plaintextBlocks[0] = encrypt.ShiftRows(plaintextBlocks[0], 0); // Shift rows
 
 
 
