@@ -1,0 +1,9 @@
+# Config #
+# No spaces
+# Key must be in hex format
+
+key:
+plaintext:hello world
+mode:ECB
+
+# End #
