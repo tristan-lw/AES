@@ -307,10 +307,7 @@ namespace AES
             };
 
             KeyExpansion key = new KeyExpansion(originalKey);
-            foreach (byte b in key.ExpandedKey)
-            {
-                Console.WriteLine(b);
-            }
+            Console.WriteLine(Convert.ToHexString(key.ExpandedKey)); // Pretty ugly output
 
             string plaintext = "Hello, World! Goodbye, World!";
             byte[] plaintextBytes = Encoding.ASCII.GetBytes(plaintext); // ASCII, each character is represented as a byte
@@ -330,7 +327,7 @@ namespace AES
             // Console.WriteLine(plaintextBlocks[0][1, 2]);
 
             Encryption encrypt = new Encryption();
-            plaintextBlocks[0] = encrypt.AddRoundKey(plaintextBlocks[0], key.ExpandedKey); // XOR block 1 with round key 1
+            plaintextBlocks[0] = encrypt.AddRoundKey(plaintextBlocks[0], key.ExpandedKey); // Add round key 1 to block 1
 
             for (int i = 0; i < plaintextBlocks[0].Size; i++) // Sub all bytes in block 1
             {
@@ -341,6 +338,11 @@ namespace AES
             }
 
             plaintextBlocks[0] = encrypt.ShiftRows(plaintextBlocks[0], 0); // Shift rows
+
+            // Mix columns here
+
+            // Add round key 2
+
 
             Console.ReadLine();
         }
