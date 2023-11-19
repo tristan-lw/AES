@@ -4,6 +4,90 @@ using System.Text;
 
 namespace AES
 {
+    internal class Config
+    {
+        private string line;
+        private string endS;
+        private string keyS;
+        private string plaintextS;
+        private string modeS;
+        private int index;
+
+        internal string Key { get; set; }
+        internal string Plaintext { get; set; }
+        internal string Mode { get; set; }
+        internal Config()
+        {
+            endS = "# End #";
+            keyS = "key:";
+            plaintextS = "plaintext:";
+            modeS = "mode:";
+            try
+            {
+                StreamReader sr = new StreamReader("C:\\Users\\Tristan\\source\\repos\\REAL AES PROJECT\\AES\\config.txt");
+                while (line != endS)
+                {
+                    line = sr.ReadLine();
+                    if (line.StartsWith(keyS))
+                    {
+                        StoreKey();
+                    }
+                    else if (line.StartsWith(plaintextS))
+                    {
+                        StorePlaintext();
+                    }
+                    else if (line.StartsWith(modeS))
+                    {
+                        StoreMode();
+                    }
+                }
+                sr.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Exception: " + e.Message);
+            }
+            Console.WriteLine(Plaintext);
+            Console.WriteLine(Mode);
+        }
+        private void StoreKey()
+        {
+            index = line.IndexOf(keyS);
+            if (index != -1)
+            {
+                Key = line.Substring(index + keyS.Length);
+            }
+            else
+            {
+                Console.WriteLine("Key section missing from config file");
+            }
+            // A6B5J5
+        }
+        private void StorePlaintext()
+        {
+            index = line.IndexOf(plaintextS);
+            if (index != -1)
+            {
+                Plaintext = line.Substring(index + plaintextS.Length);
+            }
+            else
+            {
+                Console.WriteLine("Plaintext section missing from config file");
+            }
+        }
+        private void StoreMode()
+        {
+            index = line.IndexOf(modeS);
+            if (index != -1)
+            {
+                Mode = line.Substring(index + modeS.Length);
+            }
+            else
+            {
+                Console.WriteLine("Mode section missing from config file");
+            }
+        }
+    } 
     internal class GaloisField
     {
         private static byte[] logTable = new byte[]
@@ -294,12 +378,39 @@ namespace AES
             n += 1;
             return ShiftRows(block, n);
         }
+        internal Block MixColumn(Block block)
+        {
+            byte[] a = new byte[4];
+            byte[] b = new byte[4];
+            byte c;
+            byte h;
+
+            for (c = 0; c < 4; c++)
+            {
+                a[c] = block[c,0];
+                h = (byte)(block[c,0] & 0x80); // hi bit
+                b[c] = (byte)(block[c,0] << 1);
+                if (h == 0x80)
+                    b[c] ^= 0x1b; // Rijndael's Galois field
+            }
+
+            block[0,0] = (byte)(b[0] ^ a[3] ^ a[2] ^ b[1] ^ a[1]);
+            block[1,0] = (byte)(b[1] ^ a[0] ^ a[3] ^ b[2] ^ a[2]);
+            block[2,0] = (byte)(b[2] ^ a[1] ^ a[0] ^ b[3] ^ a[3]);
+            block[3,0] = (byte)(b[3] ^ a[2] ^ a[1] ^ b[0] ^ a[0]);
+            return block;
+        }
     }
+
+
     internal class Program
     {
         static void Main(string[] args)
         {
+
             Console.WriteLine("Hello, World!");
+
+            Config config = new Config();
 
             byte[] originalKey = new byte[] // 16 bytes of hexadecimal
             {
@@ -307,10 +418,12 @@ namespace AES
             };
 
             KeyExpansion key = new KeyExpansion(originalKey);
-            Console.WriteLine(Convert.ToHexString(key.ExpandedKey)); // Pretty ugly output
+            /* Test key expansion
+            Console.WriteLine(Convert.ToHexString(key.ExpandedKey));
+            */
 
-            string plaintext = "Hello, World! Goodbye, World!";
-            byte[] plaintextBytes = Encoding.ASCII.GetBytes(plaintext); // ASCII, each character is represented as a byte
+            /*string plaintext = "Hello, World! Goodbye, World!";
+            byte[] plaintextBytes = Encoding.UTF8.GetBytes(plaintext); // UTF8, each character is represented as a byte
             byte[] plaintextBytesSliced;
 
             int numberOfBlocks = (plaintext.Length / 16) + 1;
@@ -326,23 +439,57 @@ namespace AES
             }
             // Console.WriteLine(plaintextBlocks[0][1, 2]);
 
+            int roundBytes;
+            roundBytes = 0;
             Encryption encrypt = new Encryption();
-            plaintextBlocks[0] = encrypt.AddRoundKey(plaintextBlocks[0], key.ExpandedKey); // Add round key 1 to block 1
+            byte[] roundArray = new byte[16];
 
-            for (int i = 0; i < plaintextBlocks[0].Size; i++) // Sub all bytes in block 1
+            for (int a = 0; a < numberOfBlocks; a++)
             {
-                for (int j = 0; j < plaintextBlocks[0].Size; j++)
+                // Sub bytes
+                for (int i = 0; i < plaintextBlocks[a].Size; i++)
                 {
-                    plaintextBlocks[0][i,j] = encrypt.SubByte(plaintextBlocks[0][i, j]);
+                    for (int j = 0; j < plaintextBlocks[a].Size; j++)
+                    {
+                        plaintextBlocks[a][i, j] = encrypt.SubByte(plaintextBlocks[a][i, j]);
+                    }
                 }
-            }
 
-            plaintextBlocks[0] = encrypt.ShiftRows(plaintextBlocks[0], 0); // Shift rows
+                // Shift rows
+                plaintextBlocks[a] = encrypt.ShiftRows(plaintextBlocks[a], 0);
 
-            // Mix columns here
+                // Mix column
+                plaintextBlocks[0] = encrypt.MixColumn(plaintextBlocks[0]);
+                /* Test the MixColumn step
+                byte[] test = new byte[]
+                {
+                    0xdb, 0x00, 0x00, 0x00,
+                    0x13, 0x00, 0x00, 0x00,
+                    0x53, 0x00, 0x00, 0x00,
+                    0x45, 0x00, 0x00, 0x00
+                };
+                Block block = new Block(test);
+                Encryption encrypt = new Encryption();
+                block = encrypt.MixColumn(block);
+                for (int i = 0; i < 4; i++)
+                {
+                    for (int j = 0; j < 4; j++)
+                    {
+                        Console.WriteLine(block[i,j]);
+                    }
+                }*/
 
-            // Add round key 2
-
+                // Add round key
+                /*Array.Copy(key.ExpandedKey, roundBytes, roundArray, 0, 16);
+                plaintextBlocks[a] = encrypt.AddRoundKey(plaintextBlocks[a], roundArray);
+                for (int i = 0; i < 4; i++)
+                {
+                    for (int j = 0; j < 4; j++)
+                    {
+                        Console.Write(plaintextBlocks[0][i, j]);
+                    }
+                }
+            }*/
 
             Console.ReadLine();
         }
