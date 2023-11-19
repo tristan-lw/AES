@@ -114,19 +114,23 @@ namespace AES
         }
         internal byte Multiply(byte a, byte b)
         {
-            byte p = 0;
-            byte hiBitSet;
+            byte product = 0;
+            byte carry;
             for (int i = 0; i < 8; i++)
             {
-                if ((b & 1) == 1)
-                    p ^= a;
-                hiBitSet = (byte)(a & 0x80);
-                a <<= 1;
-                if (hiBitSet == 0x80)
+                if ((b & 1) == 1) // Check if LSB is set
+                {
+                    product ^= a;
+                }
+                carry = (byte)(a & 0x80); // Mask with 1000000
+                a <<= 1; // Rotate 1 bit to left, ignoring the high bit, making low bit 0
+                if (carry == 0x80)
+                {
                     a ^= 0x1b;
-                b >>= 1;
-            }
-            return p;
+                }
+                b >>= 1; // Rotate 1 bit to right, ignoring the low bit, making high bit 0
+            }   
+            return product;
         }
     }
     internal class KeyExpansion
@@ -337,9 +341,6 @@ namespace AES
             }
 
             plaintextBlocks[0] = encrypt.ShiftRows(plaintextBlocks[0], 0); // Shift rows
-
-
-
 
             Console.ReadLine();
         }
