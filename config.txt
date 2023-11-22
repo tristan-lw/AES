@@ -1,9 +1,0 @@
-# Config #
-# No spaces
-# Key must be in hex format
-
-key:00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-plaintext:hhnn, "hello world"ji 8
-mode:EC B  
-
-# End #
