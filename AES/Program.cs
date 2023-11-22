@@ -13,7 +13,6 @@ namespace AES
         private string modeS;
         private int index;
         private string hexPrefix;
-        private byte b;
         private int startIndex;
         private int endIndex;
 
@@ -72,14 +71,11 @@ namespace AES
             {
                 line = line.Substring(index + keyS.Length);
                 line = Format(line);
+                Key = new byte[line.Length / 2];
                 // Line == 01 HB 7J ---> 01HB7J
-                for (int i = 0; i < Key.Length; i++)
+                for (int i = 0; i < line.Length; i+=2)
                 {
-                    b = Convert.ToByte(
-                        hexPrefix + line[i] + line[i + 1],
-                        16
-                    );
-                    Key[i] = b;
+                    Key[i/2] = Convert.ToByte(line.Substring(i, 2), 16);
                 }
             }
             else
@@ -453,10 +449,22 @@ namespace AES
             key = new KeyExpansion(config.Key);
             File.AppendAllText(
                 config.path,
+                "# Key #\n" + Convert.ToHexString(config.Key) + "\n\n"
+                );
+            File.AppendAllText(
+                config.path,
                 "# Key Expansion #\n" +Convert.ToHexString(key.ExpandedKey) + "\n\n"
              );
+            
 
-            plaintextBytes = Encoding.UTF8.GetBytes(config.Plaintext); // UTF8, each character is represented as a byte
+            //plaintextBytes = Encoding.UTF8.GetBytes(config.Plaintext); // UTF8, each character is represented as a byte
+            plaintextBytes = new byte[]{
+                0x6b, 0xc1, 0xbe, 0xe2,
+                0x2e, 0x40, 0x9f, 0x96,
+                0xe9, 0x3d, 0x7e, 0x11,
+                0x73, 0x93, 0x17, 0x2a
+            };
+
             File.AppendAllText(
                 config.path,
                 "# Plaintext in UTF8 bytes #\n" + Convert.ToHexString(plaintextBytes) + "\n\n"
