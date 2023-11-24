@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.Metrics;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks.Dataflow;
 
 namespace AES
 {
@@ -315,6 +316,11 @@ namespace AES
         }
         internal Block(byte[] plaintextBytes)
         {
+            // Contents of a block
+            //  [0,0] [0,1] [0,2] [0,3]
+            //  [1,0] [1,1] [1,2] [1,3]
+            //  ...
+            //  [3,0,] [3,1] [3,2] [3,3]
             Size = 4;
             block = new byte[4, 4];
             int index = 0; // check if block can't be filled anymore
@@ -333,6 +339,21 @@ namespace AES
                     }
                 }
             }
+        }
+        internal void WriteBlock(string path, Block block)
+        {
+            for (int i = 0; i < block.Size; i++)
+            {
+                for (int j = 0; j < block.Size; j++)
+                {
+                    File.AppendAllText(
+                        path,
+                        block[i, j].ToString("X2") + " "
+                    );
+                }
+                File.AppendAllText(path, "\n");
+            }
+            File.AppendAllText(path, "\n\n");
         }
     }
     internal class Encryption
@@ -388,7 +409,7 @@ namespace AES
             byte[] temp = new byte[row.Length];
             for (int i = 0; i < row.Length; i++) // Define row
             {
-                row[i] = block[n, i];
+                row[i] = block[i, n];
             }
             for (int i = 0; i < n; i++) // Copy
             {
@@ -404,7 +425,7 @@ namespace AES
             }
             for (int i = 0; i < row.Length; i++) // Insert row
             {
-                block[n, i] = row[i];
+                block[i,n] = row[i];
             }
             n += 1;
             return ShiftRows(block, n);
@@ -482,29 +503,27 @@ namespace AES
                 counter += 16;
             }
             File.AppendAllText(config.path, "# All blocks #\n");
-            for (int a = 0; a < numberOfBlocks; a++)
+            for (int i = 0; i < numberOfBlocks; i++)
             {
-                for (int i = 0; i < plaintextBlocks[0].Size; i++)
-                {
-                    for (int j = 0; j < plaintextBlocks[0].Size; j++)
-                    {
-                        File.AppendAllText(
-                            config.path,
-                            plaintextBlocks[a][i, j].ToString("X2") + " "
-                        );
-                    }
-                    File.AppendAllText(config.path, "\n");
-                }
-                File.AppendAllText(config.path, "\n\n");
+                plaintextBlocks[i].WriteBlock(config.path, plaintextBlocks[i]);
             }
-            // Console.WriteLine(plaintextBlocks[0][1, 2]);
 
             roundBytes = 0;
             Encryption encrypt = new Encryption();
             byte[] roundArray = new byte[16];
 
+            // Add round key
+            Array.Copy(key.ExpandedKey, roundBytes, roundArray, 0, 16);
+            plaintextBlocks[0] = encrypt.AddRoundKey(plaintextBlocks[0], roundArray);
+            File.AppendAllText(config.path, "# After 1st round key XOR #\n");
+            for (int i = 0; i < numberOfBlocks; i++)
+            {
+                plaintextBlocks[i].WriteBlock(config.path, plaintextBlocks[i]);
+            }
+
             for (int a = 0; a < numberOfBlocks; a++)
             {
+
                 // Sub bytes
                 for (int i = 0; i < plaintextBlocks[a].Size; i++)
                 {
@@ -513,9 +532,19 @@ namespace AES
                         plaintextBlocks[a][i, j] = encrypt.SubByte(plaintextBlocks[a][i, j]);
                     }
                 }
+                File.AppendAllText(config.path, "# After Sbox #\n");
+                for (int i = 0; i < numberOfBlocks; i++)
+                {
+                    plaintextBlocks[i].WriteBlock(config.path, plaintextBlocks[i]);
+                }
 
                 // Shift rows
                 plaintextBlocks[a] = encrypt.ShiftRows(plaintextBlocks[a], 0);
+                File.AppendAllText(config.path, "# After shift rows (permutation) #\n");
+                for (int i = 0; i < numberOfBlocks; i++)
+                {
+                    plaintextBlocks[i].WriteBlock(config.path, plaintextBlocks[i]);
+                }
                 /* Test the ShifitRows step
                 byte[] test = new byte[]
                 {
@@ -538,6 +567,11 @@ namespace AES
 
                 // Mix column
                 plaintextBlocks[0] = encrypt.MixColumn(plaintextBlocks[0]);
+                File.AppendAllText(config.path, "# After mix columns (mult) #\n");
+                for (int i = 0; i < numberOfBlocks; i++)
+                {
+                    plaintextBlocks[i].WriteBlock(config.path, plaintextBlocks[i]);
+                }
                 /* Test the MixColumn step
                 byte[] test = new byte[]
                 {
@@ -561,15 +595,12 @@ namespace AES
                 // Add round key
                 Array.Copy(key.ExpandedKey, roundBytes, roundArray, 0, 16);
                 plaintextBlocks[a] = encrypt.AddRoundKey(plaintextBlocks[a], roundArray);
-                for (int i = 0; i < 4; i++)
+                File.AppendAllText(config.path, "# Final thing #\n");
+                for (int i = 0; i < numberOfBlocks; i++)
                 {
-                    for (int j = 0; j < 4; j++)
-                    {
-                        Console.Write(plaintextBlocks[0][i, j].ToString("X2") + " ");
-                    }
+                    plaintextBlocks[i].WriteBlock(config.path, plaintextBlocks[i]);
                 }
             }
-
             Console.ReadLine();
         }
     }
