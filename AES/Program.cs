@@ -245,7 +245,7 @@ namespace AES
                     a ^= 0x1b;
                 }
                 b >>= 1; // Rotate 1 bit to right, ignoring the low bit, making high bit 0
-            }   
+            }
             return product;
         }
     }
@@ -432,28 +432,43 @@ namespace AES
         }
         internal Block MixColumn(Block block)
         {
-            byte[] a = new byte[4];
-            byte[] b = new byte[4];
-            byte c;
-            byte h;
+            // Step 1: take column from block
+            // Step 2: Multiply
 
-            for (c = 0; c < 4; c++)
+            // 1 5 9 
+            // 2 6
+            // 3 7
+            // 4 8
+
+            // 2 3 1 1
+            // 1 2 3 1
+            // 1 1 2 3
+            // 3 1 1 2
+
+            // 1 * 2 +
+            // 2 * 3 +
+            // 3 * 1 +
+            // 4 * 1
+
+            GaloisField GF = new GaloisField();
+
+            
+            for (int i = 0; i < block.Size; i++) // Column
             {
-                a[c] = block[c,0];
-                h = (byte)(block[c,0] & 0x80); // hi bit
-                b[c] = (byte)(block[c,0] << 1);
-                if (h == 0x80)
-                    b[c] ^= 0x1b; // Rijndael's Galois field
+                byte b0 = block[0,i];
+                byte b1 = block[1,i];
+                byte b2 = block[2,i];
+                byte b3 = block[3,i];
+
+                block[0,i] = (byte)(GF.Multiply(b0, 2) ^ GF.Multiply(b1, 3) ^ b2 ^ b3);
+                block[1,i] = (byte)(b0 ^ GF.Multiply(b1, 2) ^ GF.Multiply(b2, 3) ^ b3);
+                block[2,i] = (byte)(b0 ^ b1 ^ GF.Multiply(b2, 2) ^ GF.Multiply(b3, 3));
+                block[3,i] = (byte)(GF.Multiply(b0, 3) ^ b1 ^ b2 ^ GF.Multiply(b3, 2));
             }
 
-            block[0,0] = (byte)(b[0] ^ a[3] ^ a[2] ^ b[1] ^ a[1]);
-            block[1,0] = (byte)(b[1] ^ a[0] ^ a[3] ^ b[2] ^ a[2]);
-            block[2,0] = (byte)(b[2] ^ a[1] ^ a[0] ^ b[3] ^ a[3]);
-            block[3,0] = (byte)(b[3] ^ a[2] ^ a[1] ^ b[0] ^ a[0]);
             return block;
         }
     }
-
     internal class Program
     {
         private static int roundBytes;
@@ -521,8 +536,14 @@ namespace AES
                 plaintextBlocks[i].WriteBlock(config.path, plaintextBlocks[i]);
             }
 
-            for (int a = 0; a < numberOfBlocks; a++)
+
+            // For each block
+            // 10 rounds !!
+            for (int blockNum = 0; blockNum < numberOfBlocks; blockNum++)
             {
+
+
+
 
                 // Sub bytes
                 for (int i = 0; i < plaintextBlocks[a].Size; i++)
@@ -572,6 +593,7 @@ namespace AES
                 {
                     plaintextBlocks[i].WriteBlock(config.path, plaintextBlocks[i]);
                 }
+
                 /* Test the MixColumn step
                 byte[] test = new byte[]
                 {
@@ -601,6 +623,27 @@ namespace AES
                     plaintextBlocks[i].WriteBlock(config.path, plaintextBlocks[i]);
                 }
             }
+            /* Test mix columns
+            byte[] test = new byte[]
+            {
+                0x09, 0x28, 0x7F, 0x47,
+                0x6F, 0x74, 0x6A, 0xBF,
+                0x2C, 0x4A, 0x62, 0x04,
+                0xDA, 0x08, 0xE3, 0xEE
+            };
+            Block blockFAKE = new Block(test);
+            blockFAKE = encrypt.MixColumn(blockFAKE);
+
+            for (int i = 0; i < 4; i++)
+            {
+                for (int j = 0; j < 4; j++)
+                {
+                    Console.Write(blockFAKE[i, j].ToString("X2") + " ");
+                }
+                Console.Write("\n");
+            }*/
+            Console.WriteLine("Hello world");
+
             Console.ReadLine();
         }
     }
