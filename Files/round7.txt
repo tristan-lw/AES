@@ -1,0 +1,28 @@
+# Sub bytes #
+B3 69 A3 52 
+CD 6A B5 90 
+FA 15 8B FA 
+C5 9B D2 DF 
+
+
+# Shift rows #
+B3 69 A3 52 
+6A B5 90 CD 
+8B FA FA 15 
+DF C5 9B D2 
+
+
+# Mix columns #
+8A 65 B9 91 
+6A B5 90 CD 
+8B FA FA 15 
+DF C5 9B D2 
+
+
+# Add round key #
+46 11 A7 23 
+FC 5F 16 65 
+66 50 C5 24 
+C9 C6 BF B8 
+
+

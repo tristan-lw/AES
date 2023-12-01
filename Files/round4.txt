@@ -1,0 +1,28 @@
+# Sub bytes #
+96 72 76 30 
+2B 26 23 A1 
+EF 8E E0 06 
+92 F0 62 EE 
+
+
+# Shift rows #
+96 72 76 30 
+26 23 A1 2B 
+E0 06 EF 8E 
+EE 92 F0 62 
+
+
+# Mix columns #
+A0 8C 2F 31 
+26 23 A1 2B 
+E0 06 EF 8E 
+EE 92 F0 62 
+
+
+# Add round key #
+01 38 F8 25 
+34 4B F0 79 
+E2 B8 B8 C7 
+27 33 50 39 
+
+
