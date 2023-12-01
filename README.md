@@ -1,7 +1,6 @@
 # Computer Science A-level Coursework Project
 <sub>*(is the README meant to go in `.git`?)*</sub>
 
-AES-128-ECB encryption in C# (not using the built in class)
-There may be some random things in here for the sole purpose of getting more marks
+AES-128-ECB encryption from scratch in C# 
 
-I may link my **ANALYSIS** and **DESIGN** documents to this in the future
+I may link my **DESIGN** document to this in the future, explaining how the program works as it does stuff a little differently
