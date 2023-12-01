@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.Metrics;
+using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks.Dataflow;
@@ -12,9 +13,11 @@ namespace AES
         private string keyS;
         private string plaintextS;
         private string hexPrefix;
+        private string configFile;
         private int index;
         private int startIndex;
         private int endIndex;
+        internal string[] outputFiles { get; }
 
         internal string Path { get; }
         internal byte[] Key { get; set; }
@@ -26,19 +29,28 @@ namespace AES
             endS = "# End #";
             hexPrefix = "0x";
             Key = new byte[16];
-            Path = "C:\\Users\\Tristan\\source\\repos\\REAL AES PROJECT\\AES\\output.txt";
-            if (File.Exists(Path))
-            {
-                File.Delete(Path);
-                File.WriteAllText(Path, string.Empty);
-            }
-            else
-            {
-                File.WriteAllText(Path, string.Empty);
+            Path = "C:\\Users\\Tristan\\source\\repos\\REAL AES PROJECT\\AES\\Files\\";
+            configFile = "C:\\Users\\Tristan\\source\\repos\\REAL AES PROJECT\\AES\\config.txt";
+            outputFiles = new string[] {
+                "initial.txt",
+                "round1.txt", "round2.txt", "round3.txt", "round4.txt", "round5.txt",
+                "round6.txt", "round7.txt", "round8.txt", "round9.txt", "round10.txt",
+                "final.txt"
+            };
+            foreach (string file in outputFiles) {
+                if (File.Exists(Path + file))
+                {
+                    File.Delete(Path + file);
+                    File.WriteAllText(Path + file, string.Empty);
+                }
+                else
+                {
+                    File.WriteAllText(Path + file, string.Empty);
+                }
             }
             try
             {
-                StreamReader sr = new StreamReader("C:\\Users\\Tristan\\source\\repos\\REAL AES PROJECT\\AES\\config.txt");
+                StreamReader sr = new StreamReader(configFile);
                 while (line != endS)
                 {
                     line = sr.ReadLine();
@@ -58,7 +70,7 @@ namespace AES
                 Console.WriteLine("Exception: " + e.Message);
             }
             File.AppendAllText(
-                Path,
+                Path + outputFiles[0],
                 "# Key #\n" + Convert.ToHexString(Key) + "\n\n"
                 );
         }
@@ -70,7 +82,7 @@ namespace AES
                 line = line.Substring(index + keyS.Length);
                 line = line.Replace(" ", "");
                 Key = new byte[line.Length / 2];
-                // Line == 01 HB 7J ---> 01HB7J
+                // Line = 01 HB 7J ---> 01HB7J
                 for (int i = 0; i < line.Length; i+=2)
                 {
                     Key[i/2] = Convert.ToByte(line.Substring(i, 2), 16);
@@ -78,7 +90,7 @@ namespace AES
             }
             else
             {
-                Console.WriteLine("Key section missing from config file");
+                Console.WriteLine("Key not found in " + Path);
             }
         }
         private void StorePlaintext()
@@ -96,7 +108,7 @@ namespace AES
             }
             else
             {
-                Console.WriteLine("Plaintext section missing from config file");
+                Console.WriteLine("Plaintext not found in " + Path);
             }
         }
     }
@@ -249,16 +261,16 @@ namespace AES
         private int i;
         private GaloisField GF;
         private Config config;
-        internal KeyExpansion(byte[] originalKey)
+        internal KeyExpansion(byte[] key)
         {
             config = new Config();
             GF = new GaloisField();
             ExpandedKey = new byte[176];
-            key = originalKey;
+            this.key = key;
             word = new byte[4];
             byteCounter = 16;
             i = 1;
-            Array.Copy(key, ExpandedKey, 16);
+            Array.Copy(this.key, ExpandedKey, 16);
             while (byteCounter < 176)
             {
                 for (int a = 0; a < 4; a++)
@@ -282,7 +294,7 @@ namespace AES
                 }
             }
             File.AppendAllText(
-                config.Path,
+                config.Path + config.outputFiles[0],
                 "# Key Expansion #\n" + Convert.ToHexString(ExpandedKey) + "\n\n"
              );
         }
@@ -300,6 +312,7 @@ namespace AES
     {
         internal int Size { get; }
         private byte[,] block;
+        private byte padding;
         internal byte this[int i, int j]
         {
             get { return block[i, j]; }
@@ -314,19 +327,20 @@ namespace AES
             //  [3,0,] [3,1] [3,2] [3,3]
             Size = 4;
             block = new byte[4, 4];
-            int index = 0; // check if block can't be filled anymore
+            int index = 0;
             for (int i = 0; i < Size; i++)
             {
                 for (int j = 0; j < Size; j++)
                 {
-                    if (index < plaintextBytes.Length)
+                    if (index < plaintextBytes.Length) // check if block can't be filled anymore
                     {
                         block[i, j] = plaintextBytes[index];
                         index++;
                     }
                     else
                     {
-                        block[i, j] = 0; // 0 = null
+                        padding = (byte)(16 - index);
+                        block[i, j] = padding; // 0 = null
                     }
                 }
             }
@@ -339,7 +353,7 @@ namespace AES
                 {
                     File.AppendAllText(
                         path,
-                        block[i, j].ToString("X2") + " "
+                        block[j, i].ToString("X2") + " "
                     );
                 }
                 File.AppendAllText(path, "\n");
@@ -446,15 +460,15 @@ namespace AES
             
             for (int i = 0; i < block.Size; i++)
             {
-                byte b0 = block[0,i];
-                byte b1 = block[1,i];
-                byte b2 = block[2,i];
-                byte b3 = block[3,i];
+                byte b0 = block[i,0];
+                byte b1 = block[i,1];
+                byte b2 = block[i,2];
+                byte b3 = block[i,3];
 
-                block[0,i] = (byte)(GF.Multiply(b0, 2) ^ GF.Multiply(b1, 3) ^ b2 ^ b3);
-                block[1,i] = (byte)(b0 ^ GF.Multiply(b1, 2) ^ GF.Multiply(b2, 3) ^ b3);
-                block[2,i] = (byte)(b0 ^ b1 ^ GF.Multiply(b2, 2) ^ GF.Multiply(b3, 3));
-                block[3,i] = (byte)(GF.Multiply(b0, 3) ^ b1 ^ b2 ^ GF.Multiply(b3, 2));
+                block[i,0] = (byte)(GF.Multiply(b0, 2) ^ GF.Multiply(b1, 3) ^ b2 ^ b3);
+                block[i,0] = (byte)(b0 ^ GF.Multiply(b1, 2) ^ GF.Multiply(b2, 3) ^ b3);
+                block[i,0] = (byte)(b0 ^ b1 ^ GF.Multiply(b2, 2) ^ GF.Multiply(b3, 3));
+                block[i,0] = (byte)(GF.Multiply(b0, 3) ^ b1 ^ b2 ^ GF.Multiply(b3, 2));
             }
             return block;
         }
@@ -475,7 +489,11 @@ namespace AES
         
         private static void FillBlocks()
         {
-            numberOfBlocks = (config.Plaintext.Length / 16) + 1;
+            numberOfBlocks = (config.Plaintext.Length / 16);
+            if (config.Plaintext.Length % 16 != 0)
+            {
+                numberOfBlocks += 1;
+            }
             plaintextBlocks = new Block[numberOfBlocks];
             counter = 0;
             for (int i = 0; i < plaintextBlocks.Length; i++) // Fill plaintextBlocks with plaintext
@@ -485,17 +503,17 @@ namespace AES
                 plaintextBlocks[i] = new Block(plaintextBytesSliced);
                 counter += 16;
             }
-            File.AppendAllText(config.Path, "# All blocks #\n");
-            for (int i = 0; i < numberOfBlocks; i++)
+            File.AppendAllText(config.Path + config.outputFiles[0], "# All blocks #\n");
+            foreach (Block block in plaintextBlocks)
             {
-                plaintextBlocks[i].WriteBlock(config.Path, plaintextBlocks[i]);
+                block.WriteBlock(config.Path + config.outputFiles[0], block);
             }
         }
         private static void ConvertToPlaintextBytes()
         {
             plaintextBytes = Encoding.UTF8.GetBytes(config.Plaintext); // UTF8, each character is represented as a byte
             File.AppendAllText(
-                config.Path,
+                config.Path + config.outputFiles[0],
                 "# Plaintext in UTF8 bytes #\n" + Convert.ToHexString(plaintextBytes) + "\n\n"
             );
         }
@@ -513,15 +531,20 @@ namespace AES
       
             // For each block
             // 10 rounds !!
-            for (int blockNum = 0; blockNum < numberOfBlocks-1; blockNum++)
+            for (int blockNum = 0; blockNum < numberOfBlocks; blockNum++)
             {
                 roundBytes = 0;
                 // Add round key 1
                 Array.Copy(key.ExpandedKey, roundBytes, roundArray, 0, 16); // source, index, destination, length
-                plaintextBlocks[blockNum] = encrypt.AddRoundKey(plaintextBlocks[0], roundArray);
-
-                for (int round = 0; round < 9; round++) // 10 rounds
+                plaintextBlocks[blockNum] = encrypt.AddRoundKey(plaintextBlocks[blockNum], roundArray);
+                for (int round = 1; round < 10; round++) // 9 rounds
                 {
+                    File.AppendAllText(config.Path + config.outputFiles[round], "# Input blocks #\n");
+                    foreach (Block block in plaintextBlocks)
+                    {
+                        block.WriteBlock(config.Path + config.outputFiles[round], block);
+                    }
+
                     // Sub bytes
                     for (int i = 0; i < plaintextBlocks[blockNum].Size; i++)
                     {
@@ -531,36 +554,59 @@ namespace AES
                             plaintextBlocks[blockNum][i, j] = GF.ApplySbox(plaintextBlocks[blockNum][i, j]);
                         }
                     }
+                    File.AppendAllText(config.Path + config.outputFiles[round], "# Sub bytes #\n");
+                    foreach (Block block in plaintextBlocks)
+                    {
+                        block.WriteBlock(config.Path + config.outputFiles[round], block);
+                    }
 
                     // Shift rows
                     plaintextBlocks[blockNum] = encrypt.ShiftRows(plaintextBlocks[blockNum], 0);
+                    File.AppendAllText(config.Path + config.outputFiles[round], "# Shift rows #\n");
+                    foreach (Block block in plaintextBlocks)
+                    {
+                        block.WriteBlock(config.Path + config.outputFiles[round], block);
+                    }
+
 
                     // Mix columns
                     plaintextBlocks[blockNum] = encrypt.MixColumns(plaintextBlocks[blockNum]);
+
+                    File.AppendAllText(config.Path + config.outputFiles[round], "# Mix columns #\n");
+                    foreach (Block block in plaintextBlocks)
+                    {
+                        block.WriteBlock(config.Path + config.outputFiles[round], block);
+                    }
 
                     // Add round key
                     roundBytes += 16;
                     Array.Copy(key.ExpandedKey, roundBytes, roundArray, 0, 16);
                     plaintextBlocks[blockNum] = encrypt.AddRoundKey(plaintextBlocks[blockNum], roundArray);
+                    File.AppendAllText(config.Path + config.outputFiles[round], "# Add round key #\n");
+                    foreach (Block block in plaintextBlocks)
+                    {
+                        block.WriteBlock(config.Path + config.outputFiles[round], block);
+                    }
                 }
-            }
-            for (int i = 0; i < plaintextBlocks[numberOfBlocks-1].Size; i++)
-            {
-                for (int j = 0; j < plaintextBlocks[numberOfBlocks - 1].Size; j++)
+
+                for (int i = 0; i < plaintextBlocks[blockNum].Size; i++)
                 {
-                    plaintextBlocks[numberOfBlocks - 1][i,j] = GF.ApplySbox(plaintextBlocks[numberOfBlocks - 1][i,j]);
+                    for (int j = 0; j < plaintextBlocks[blockNum].Size; j++)
+                    {
+                        plaintextBlocks[blockNum][i, j] = GF.ApplySbox(plaintextBlocks[blockNum][i, j]);
+                    }
                 }
-            }
 
-            plaintextBlocks[numberOfBlocks - 1] = encrypt.ShiftRows(plaintextBlocks[numberOfBlocks - 1], 0);
+                plaintextBlocks[blockNum] = encrypt.ShiftRows(plaintextBlocks[blockNum], 0);
 
-            roundBytes += 16;
-            Array.Copy(key.ExpandedKey, roundBytes, roundArray, 0, 16);
-            plaintextBlocks[numberOfBlocks - 1] = encrypt.AddRoundKey(plaintextBlocks[numberOfBlocks - 1], roundArray);
+                roundBytes += 16;
+                Array.Copy(key.ExpandedKey, roundBytes, roundArray, 0, 16);
+                plaintextBlocks[blockNum] = encrypt.AddRoundKey(plaintextBlocks[blockNum], roundArray);
+            } 
 
             foreach (Block block in plaintextBlocks)
             {
-                block.WriteBlock(config.Path, block);
+                block.WriteBlock(config.Path + config.outputFiles[11], block);
             }
 
             /* Test mix columns
