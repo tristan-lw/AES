@@ -1,28 +1,35 @@
+# Input blocks #
+C7 D8 F9 FE 
+1A 88 E6 8D 
+B2 51 61 EB 
+4A F1 98 1B 
+
+
 # Sub bytes #
-8B A6 3A FC 
-B8 BD 24 BE 
-5B 1A D6 68 
-FD 58 A1 80 
+C6 61 99 BB 
+A2 C4 8E 5D 
+37 D1 EF E9 
+D6 A1 46 AF 
 
 
 # Shift rows #
-8B A6 3A FC 
-BD 24 BE B8 
-D6 68 5B 1A 
-80 FD 58 A1 
+C6 61 99 BB 
+C4 8E 5D A2 
+EF E9 37 D1 
+AF D6 A1 46 
 
 
 # Mix columns #
-F6 5C 1B E4 
-BD 24 BE B8 
-D6 68 5B 1A 
-80 FD 58 A1 
+80 74 58 07 
+D0 90 DB CA 
+2D 47 52 6A 
+3F 73 83 29 
 
 
 # Add round key #
-4B E4 71 48 
-80 58 D2 96 
-14 2F CE 14 
-07 E8 7F EF 
+ED 65 83 CD 
+58 9B 22 CA 
+8E 79 D4 F9 
+45 8E C2 D4 
 
 
