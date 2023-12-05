@@ -11,7 +11,8 @@ namespace AES
     {
         private string line;
         private string endS;
-        private string keyS;
+        private string keyBytesS;
+        private string keyStringS;
         private string plaintextS;
         private string hexPrefix;
         private string configFile;
@@ -25,7 +26,8 @@ namespace AES
         internal string Plaintext { get; set; }
         internal Config()
         {
-            keyS = "key:";
+            keyBytesS = "keyBytes:";
+            keyStringS = "keyString:";
             plaintextS = "plaintext:";
             endS = "# End #";
             hexPrefix = "0x";
@@ -55,13 +57,16 @@ namespace AES
                 while (line != endS)
                 {
                     line = sr.ReadLine();
-                    if (line.StartsWith(keyS))
+                    if (line.StartsWith(keyBytesS))
                     {
-                        StoreKey();
+                        StoreKeyBytes();
                     }
                     else if (line.StartsWith(plaintextS))
                     {
                         StorePlaintext();
+                    } else if (line.StartsWith(keyStringS))
+                    {
+                        StoreKeyString();
                     }
                 }
                 sr.Close();
@@ -75,23 +80,48 @@ namespace AES
                 "# Key #\n" + Convert.ToHexString(Key) + "\n\n"
                 );
         }
-        private void StoreKey()
+        private void StoreKeyBytes()
         {
-            index = line.IndexOf(keyS);
+            index = line.IndexOf(keyBytesS);
             if (index != -1)
             {
-                line = line.Substring(index + keyS.Length);
+                line = line.Substring(index + keyBytesS.Length);
                 line = line.Replace(" ", "");
-                Key = new byte[line.Length / 2];
-                // Line = 01 HB 7J ---> 01HB7J
-                for (int i = 0; i < line.Length; i+=2)
+                if (line != "")
                 {
-                    Key[i/2] = Convert.ToByte(line.Substring(i, 2), 16);
+                    Key = new byte[line.Length / 2];
+                    // Line = 01 HB 7J ---> 01HB7J
+                    for (int i = 0; i < line.Length; i += 2)
+                    {
+                        Key[i / 2] = Convert.ToByte(line.Substring(i, 2), 16);
+                    }
                 }
             }
             else
             {
-                Console.WriteLine("Key not found in " + Path);
+                Console.WriteLine("Key bytes not found in " + configFile);
+            }
+        }
+        private void StoreKeyString()
+        {
+            index = line.IndexOf(keyStringS);
+            if (index != -1)
+            {
+                line = line.Substring(index + keyStringS.Length);
+                startIndex = line.IndexOf("\"");
+                endIndex = line.LastIndexOf("\"");
+                if (startIndex != -1 && endIndex != -1 && startIndex < endIndex)
+                {
+                    line = line.Substring(startIndex + 1, endIndex - startIndex - 1);
+                    if (line != "")
+                    {
+                        Key = Encoding.UTF8.GetBytes(line); // UTF8, each character is represented as a byte
+                    }            
+                }           
+            }
+            else
+            {
+                Console.WriteLine("Key string not found in " + configFile);
             }
         }
         private void StorePlaintext()
@@ -99,17 +129,17 @@ namespace AES
             index = line.IndexOf(plaintextS);
             if (index != -1)
             {
-                Plaintext = line.Substring(index + plaintextS.Length);
-                startIndex = Plaintext.IndexOf("\"");
-                endIndex = Plaintext.LastIndexOf("\"");
+                line = line.Substring(index + plaintextS.Length);
+                startIndex = line.IndexOf("\"");
+                endIndex = line.LastIndexOf("\"");
                 if (startIndex != -1 && endIndex != -1 && startIndex < endIndex)
                 {
-                    Plaintext = Plaintext.Substring(startIndex + 1, endIndex - startIndex -1);
+                    Plaintext = line.Substring(startIndex + 1, endIndex - startIndex -1);
                 }
             }
             else
             {
-                Console.WriteLine("Plaintext not found in " + Path);
+                Console.WriteLine("Plaintext not found in " + configFile);
             }
         }
     }
@@ -409,44 +439,35 @@ namespace AES
             n += 1;
             return ShiftRows(block, n);
         }
-        internal byte[] MixColumn(byte[] row)
+        internal byte[] MixColumn(byte[] column)
         {
-            // Step 1: take column from block
-            // Step 2: Multiply
-
-            // 1 5 9 
-            // 2 6
-            // 3 7
-            // 4 8
-
+            GaloisField GF = new GaloisField();
             // 2 3 1 1
-            // 1 2 3 1
+            // 1 2 3 1 
             // 1 1 2 3
             // 3 1 1 2
 
-            // 1 * 2 +
-            // 2 * 3 +
-            // 3 * 1 +
-            // 4 * 1
+            // AA
+            // BB
+            // CC
+            // DD
 
-            byte[] a = new byte[4];
+            byte[] columnCopy = new byte[4];
             byte[] b = new byte[4];
             byte c;
             byte h;
 
             for (c = 0; c < 4; c++)
             {
-                a[c] = row[c];
-                h = (byte)(row[c] & 0x80); /* hi bit */
-                b[c] = (byte)(row[c] << 1);
-                if (h == 0x80)
-                    b[c] ^= 0x1b;
+                columnCopy[c] = column[c];
             }
-            row[0] = (byte)(b[0] ^ a[3] ^ a[2] ^ b[1] ^ a[1]);
-            row[1] = (byte)(b[1] ^ a[0] ^ a[3] ^ b[2] ^ a[2]);
-            row[2] = (byte)(b[2] ^ a[1] ^ a[0] ^ b[3] ^ a[3]);
-            row[3] = (byte)(b[3] ^ a[2] ^ a[1] ^ b[0] ^ a[0]);
-            return row;
+
+            column[0] = (byte)(GF.Multiply(columnCopy[0], 2) ^ GF.Multiply(columnCopy[3], 1) ^ GF.Multiply(columnCopy[2], 1) ^ GF.Multiply(columnCopy[1], 3)); // (AA * 2) + (BB * 1) + (CC * 1) + (DD * 3)
+            column[1] = (byte)(GF.Multiply(columnCopy[1], 2) ^ GF.Multiply(columnCopy[0], 1) ^ GF.Multiply(columnCopy[3], 1) ^ GF.Multiply(columnCopy[2], 3)); // 3 2 1 1
+            column[2] = (byte)(GF.Multiply(columnCopy[2], 2) ^ GF.Multiply(columnCopy[1], 1) ^ GF.Multiply(columnCopy[0], 1) ^ GF.Multiply(columnCopy[3], 3)); // 1 3 2 1
+            column[3] = (byte)(GF.Multiply(columnCopy[3], 2) ^ GF.Multiply(columnCopy[2], 1) ^ GF.Multiply(columnCopy[1], 1) ^ GF.Multiply(columnCopy[0], 3)); // 3 1 1 2
+
+            return column;
         }
     }
     internal class Program
@@ -488,12 +509,7 @@ namespace AES
         }
         private static void ConvertToPlaintextBytes()
         {
-            //plaintextBytes = Encoding.UTF8.GetBytes(config.Plaintext); // UTF8, each character is represented as a byte
-            plaintextBytes = new byte[]
-{
-    0x30, 0xC8, 0x1C, 0x46, 0xA3, 0x5C, 0xE4, 0x11,
-    0xE5, 0xFB, 0xC1, 0x19, 0x1A, 0x0A, 0x52, 0xEF
-};
+            plaintextBytes = Encoding.UTF8.GetBytes(config.Plaintext); // UTF8, each character is represented as a byte
             File.AppendAllText(
                 config.Path + config.outputFiles[0],
                 "# Plaintext in UTF8 bytes #\n" + Convert.ToHexString(plaintextBytes) + "\n\n"
