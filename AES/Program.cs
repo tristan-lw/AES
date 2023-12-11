@@ -371,7 +371,7 @@ namespace AES
                     else
                     {
                         padding = (byte)(16 - index);
-                        block[i, j] = padding; // 0 = null
+                        block[i, j] = padding;
                     }
                 }
             }
@@ -517,6 +517,9 @@ namespace AES
         }
         private static void Main(string[] args)
         {
+            var sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+
             config = new Config();
             key = new KeyExpansion(config.Key);
             encrypt = new Encryption();
@@ -678,7 +681,9 @@ namespace AES
                 plaintextBlocks[i].WriteBlock(config.path, plaintextBlocks[i]);
             }*/
 
-            Console.WriteLine("Hello world");
+            sw.Stop();
+            
+            Console.WriteLine($"Execution time: {sw.ElapsedMilliseconds} ms");
 
             Console.ReadLine();
         }
